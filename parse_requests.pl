@@ -1,4 +1,4 @@
-request(["qq",o,a,"A","a","am","MH0900-1800(9:00)","MH0800-1800(10:00)","MH0900-1730(9:50)", "p","pm","al","AL","cl","CL","lsl","LSL","LPPA","CONF","PAT","mat","ua","UA","up","UP","c","cs","CS"]).
+request(["qq",o,a,"A","a","am","MH0900-1800(9:00)","MH0800-1800(10:00)","MH0900-1730(9:50)", "p","pm","al","AL","cl","CL","lsl","LSL","LPPA","CONF","PAT","mat","ua","UA","up","UP","c","cs","CS","AP"]).
 
 get_sub(SH,a):-
   sub_string("a am A AM MH0900-1800(9:00) MH0800-1800(10:00) MH0900-1730(9:50)",_,_,_,SH).
@@ -22,6 +22,9 @@ get_sub(SH,up):-
   sub_string("upUP",_,_,_,SH).
 get_sub(SH,u):-
   sub_string("u U U00:23:59 U 00-23:59",_,_,_,SH).
+get_sub(SH,ap):-
+  sub_string("AP A00:23:59 A 00:23:59",_,_,_,SH).
+
 get_sub(SH,o):-
   sub_string("oOoffOFF",_,_,_,SH).
 get_sub(SH,x):-
@@ -29,6 +32,8 @@ get_sub(SH,x):-
 
 get_sub(_,"EEEEEERRRRRRROOOOOOOOORRRRRRR").
 
+
+mapwrite(L):- maplist(write,L).
 %%ts=test_substrings  
 ts(R,RR):- 
  request(R),
