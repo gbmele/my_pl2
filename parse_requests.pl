@@ -1,5 +1,7 @@
 request(["qq",o,a,"A","a","am","MH0900-1800(9:00)","MH0800-1800(10:00)","MH0900-1730(9:50)", "p","pm","al","AL","cl","CL","lsl","LSL","LPPA","CONF","PAT","mat","ua","UA","up","UP","c","cs","CS","AP"]).
 
+
+
 get_sub(SH,a):-
   sub_string("a am A AM MH0900-1800(9:00) MH0800-1800(10:00) MH0900-1730(9:50)",_,_,_,SH).
 get_sub(SH,p):-
@@ -30,11 +32,17 @@ get_sub(SH,o):-
 get_sub(SH,x):-
   sub_string("xss",_,_,_,SH).
 
-get_sub(_,"EEEEEERRRRRRROOOOOOOOORRRRRRR").
+get_sub(_,"ERROR").
 
+process_lines([DOC|SHIFTS],[UPDOC|TRANSLATED_SHIFTS]):-
+  upcase_atom(DOC,UPDOC),
+  maplist(get_sub,SHIFTS,TRANSLATED_SHIFTS),
+  (nth1(DAY,TRANSLATED_SHIFTS,"ERROR") -> write("error shift "),write(UPDOC),write("-"),write(DAY),write("\n") ; true).
 
 mapwrite(L):- maplist(write,L).
+req([[gm,"MH0900-1800(9:00)",pm,pq],[db,ll,cl,lsl]]).
+
 %%ts=test_substrings  
 ts(R,RR):- 
- request(R),
- maplist(get_sub,R,RR).
+ req(REQUESTS),
+ maplist(process_lines,REQUESTS,RR).
