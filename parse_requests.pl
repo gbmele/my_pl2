@@ -1,6 +1,9 @@
+%%DATA
+
 request(["qq",o,a,"A","a","am","MH0900-1800(9:00)","MH0800-1800(10:00)","MH0900-1730(9:50)", "p","pm","al","AL","cl","CL","lsl","LSL","LPPA","CONF","PAT","mat","ua","UA","up","UP","c","cs","CS","AP"]).
 
 
+%%PREDS
 
 get_sub(SH,a):-
   sub_string("a am A AM MH0900-1800(9:00) MH0800-1800(10:00) MH0900-1730(9:50)",_,_,_,SH).
@@ -39,8 +42,38 @@ process_lines([DOC|SHIFTS],[UPDOC|TRANSLATED_SHIFTS]):-
   maplist(get_sub,SHIFTS,TRANSLATED_SHIFTS),
   (nth1(DAY,TRANSLATED_SHIFTS,"ERROR") -> write("error shift "),write(UPDOC),write("-"),write(DAY),write("\n") ; true).
 
+process_lines2([DOC|SHIFTS],[UPDOC|TRANSLATED_SHIFTS],[UPDOC,DAY,SHIFT]):-
+  upcase_atom(DOC,UPDOC),
+  maplist(get_sub,SHIFTS,TRANSLATED_SHIFTS),
+  (nth1(DAY,TRANSLATED_SHIFTS,"ERROR") -> write("error shift "),write(UPDOC),write("-"),write(DAY),write("\n") ; true).
+
+
+itemize(L,RESULT2):-
+  reverse(L,REVERSED),
+  itemize_(REVERSED,RESULT),
+  reverse(RESULT,RESULT2).
+
+itemize_([],[]).
+itemize_([H|T],[item(H,CT)|T2]):-
+  length(T,LL),
+  CT is LL + 1,
+  itemize_(T,T2).
+
+itemise_and_count(IN,OUT):-
+  itemise_and_count(IN,OUT,0).
+itemise_and_count([],[],COUNT).
+itemise_and_count([H|T],[item(CT,H)|T2],C):-
+  CT is C + 1,
+  itemise_and_count(T,T2,CT).
+  
+
+
+%%HELPERS
 mapwrite(L):- maplist(write,L).
-req([[gm,"MH0900-1800(9:00)",pm,pq],[db,ll,cl,lsl]]).
+req([[gm,"MH0900-1800(9:00)",pm,o],[db,a,cl,lsl]]).
+
+
+%%TESTS
 
 %%ts=test_substrings  
 ts(R,RR):- 

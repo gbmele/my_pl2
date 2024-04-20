@@ -1,6 +1,10 @@
 % To run main, run the Repl and type 'main.' into the prom
 :- include("nested_lists.pl").
 :- include("parse_requests.pl").
+:- use_module(library(clpfd)).
+
+
+
 write_me(X):- write(X).
 
 st([write_me,"hit there how are you"]).
@@ -124,6 +128,11 @@ do_revs(L,R):- phrase(revs(L),R).
 %%%
 %%%
 
+%% Vs = [_,_,_], global_cardinality(Vs, [1-2,3-_]), label(Vs).
+
+a(1).
 
  
  writeln("GG").
+
+ mlist -->[b],[c,d].
