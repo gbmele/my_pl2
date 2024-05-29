@@ -3,7 +3,14 @@
 :- include("parse_requests.pl").
 :- use_module(library(clpfd)).
 
-
+:- include("paths.pl").
+:- include("paths2.pl").
+:- include("paths3.pl").
+:- include("paths4_iterative_deepening.pl").
+:- include("paths5_bfs.pl").
+:- include("clpfd.pl").
+:- include("switch.pl").
+:- include("perpetual_process.pl").
 
 write_me(X):- write(X).
 
@@ -130,9 +137,14 @@ do_revs(L,R):- phrase(revs(L),R).
 
 %% Vs = [_,_,_], global_cardinality(Vs, [1-2,3-_]), label(Vs).
 
-a(1).
+ go(RESULT):-
+   writeln("Rachel, John, Mr. Jones, Cindy"),
+   C = car,
+   dif(MJ, plane),
+   dif(J, ship),
+   permutation([train, car, plane, ship],[R, J, MJ, C] ),
+   RESULT=[rachel-R, john-J, mr_jones-MJ, cindy-C].
 
- 
- writeln("GG").
-
- mlist -->[b],[c,d].
+ad2(X, Y, [X,Y|_]).
+ad2(X, Y, [_|Tail]) :-
+    ad2(X, Y, Tail).

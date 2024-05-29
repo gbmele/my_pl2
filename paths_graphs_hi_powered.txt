@@ -1,0 +1,489 @@
+Week 4: Notes
+graphs
+There are various possible ways to represent a graph in Prolog. Consider this acylic directed graph:
+
+
+
+We could represent the graph using a series of facts:
+
+edge(a, b).
+edge(a, e).
+edge(b, c).
+...
+This is sometimes called a temporal representation, because a query such as edge(a, V) will return a series of solutions over time.
+
+Alternatively, we could use an adjacency list representation:
+
+graph1(G) :- G =
+    [ a -> [b, e], b -> [c, f], c -> [],
+      d -> [], e -> [d, f], f -> [c],
+      g -> [d, h], h -> [f] ].
+This is sometimes called a spatial representation, since the graph is represented using a data structure.
+
+We can implement graph search algorithms on either sort of graph. Let's choose the adjacency-list representation. We can begin by writing a predicate that can tell whether an edge exists in a graph:
+
+% True if G has an edge from V to W.
+edge(G, V, W) :- member(V -> L, G), member(W, L).
+depth-first search
+Here is a predicate dfs() that can find a path between two vertices in a graph in adjacency-list representation.
+
+% dfs0(G, V, W, P): True if P is a path from V to W in graph G.
+
+dfs0(_, V, V, [V]).
+
+dfs0(G, V, W, [V | P]) :- edge(G, V, X), dfs0(G, X, W, P).
+This predicate is somewhat similar to the ancestor() predicate that we wrote in the first lecture. However, unlike that predicate it builds a path P from the start to the goal.
+
+Let's use dfs0() to find all paths from a to c in the graph above:
+
+?- graph1(_G), dfs0(_G, a, c, P).
+P = [a, b, c] ;
+P = [a, b, f, c] ;
+P = [a, e, f, c]
+The predicate will even work multidirectionally:
+
+?- graph1(_G), dfs0(_G, V, W, [a, e, f, c]).
+V = a,
+W = c
+
+?- graph1(_G), dfs0(_G, a, V, P).
+V = a,
+P = [a] ;
+V = b,
+P = [a, b] ;
+V = c,
+P = [a, b, c] ;
+V = f,
+P = [a, b, f]
+...
+Our undirected graph above was acyclic. Let's now add an edge from c to a to make the graph cyclic:
+
+
+
+graph2(G) :- G =
+    [ a -> [b, e], b -> [c, f], c -> [a],
+      d -> [], e -> [d, f], f -> [c],
+      g -> [d, h], h -> [f] ].
+Let's try using dfs0() to search this graph:
+
+?- graph2(_G), dfs0(_G, a, c, P).
+P = [a, b, c] ;
+P = [a, b, c, a, b, c] ;
+P = [a, b, c, a, b, c, a, b, c]
+...
+
+?- dfs0(a, e, Path)
+
+<hang>
+We see it fails to find a path from a to e. That's because the search walks around the cycle a-b-c in an infinite loop, so it will never consider the edge from a to e.
+
+To fix this problem, let's keep a visited set and avoid visiting any vertex twice. If we're searching for a path from V to W, we'll initialize the visited set to [V]. Each time we consider edges to a a new vertex X, we must check that X is not in the visited set. When we recurse to consider a path through X, we'll add X to the visited set. Here's an implementation:
+
+% not_member(X, L): True if X is not a member of L.
+not_member(_, []).
+not_member(X, [Y | L]) :- dif(X, Y), not_member(X, L).
+
+% dfs1(G, V, W, Vis, P): True if P is a simple path from V to W
+% that avoids vertices in the visited set Vis.
+dfs1(_G, V, V, _Vis, [V]).
+
+dfs1(G, V, W, Vis, [V | P]) :-
+    edge(G, V, X), not_member(X, Vis), dfs1(G, X, W, [X | Vis], P).
+
+% dfs1(G, V, W, P): True if P is a simple path from V to W.
+dfs1(G, V, W, P) :- dfs1(G, V, W, [V], P).
+dfs1() can search successfully even in a cyclic graph:
+
+?- graph2(_G), dfs1(_G, a, c, P).
+P = [a, b, c] ;
+P = [a, b, f, c] ;
+P = [a, e, f, c]
+
+?- graph2(_G), dfs1(_G, a, e, P).
+P = [a, e]
+This is a step forward, but dfs1() still has a couple of limitations. First, since it is a depth-first search it is not guaranteed to find the shortest path between two vertices:
+
+?- graph2(_G), dfs1(_G, b, f, P).
+P = [b, c, a, e, f]
+The second limitation is a bit more subtle. The visited set in this predicate is not like the visited set we saw in our implementation of depth-first search in Introduction to Algorithms last year. That visited set was global, so that a depth-first search would never visit the same vertex more than once. In this predicate, the visited set is local to the path that we are exploring. It ensures that no path can intersect itself, but as the recursion unwinds the visited set is lost. In some graphs this may be much less efficient than using a global visited set, since there may be (exponentially) many paths that do not intersect themselves, and dfs1() may explore many of these.
+
+iterative deepening
+One way to find the shortest path between two vertices in a graph is to use iterative deepening, which performs a series of depth-first searches, each of which has a maximum depth. The first depth-first search has depth limit 1, the second has limit 2, and so on. Iterative deepening will always find a shortest path to a goal, and is complete even in an infinite state space (as long as each state has only a finite number of neighbors).
+
+We can easily implement iterative deepening in Prolog using a simple trick, as follows:
+
+% iter_deep(G, V, W, P): True if P is a shortest path from V to W in G.
+
+iter_deep(G, V, W, P) :- length(P, _), dfs1(G, V, W, P).
+Howe does this work? The goal length(P, _) will generate uninstantiated paths of increasing lengths:
+
+?- length(P, _).
+P = [] ;
+P = [_] ;
+P = [_, _] ;
+P = [_, _, _] ;
+P = [_, _, _, _]
+...
+So iter_deep will make a series of calls to dfs1, each of which looks for a path of a particular length.
+
+Unlike dfs1(), this predicate returns the shortest path from b to f as its first result:
+
+?- graph2(_G), iter_deep(_G, b, f, P).
+P = [b, f] ;
+P = [b, c, a, e, f]
+<hang>
+Iterative deepening is sometimes a useful technique. However, this implementation will never terminate, since it will keep searching for longer and longer paths. Furthermore, it considers all possible non-self-intersecting paths of length (N - 1) before any path of length N. And unfortunately there may be exponentially many of these. To avoid this inefficiency, we must implement a breadth-first search that uses a global visited set. We will see how to do that in Prolog a bit later.
+
+searching in state spaces
+We may use graph search algorithms to search in state spaces, which allows us to solve many sorts of problems and puzzles.
+
+As a first trivial example, consider this problem. There are three coins on a table. Initially the first two coins are heads up, and the third is tails up:
+
+H H T
+We would like to make three coin flips and end up in a state where the three coins are either all heads up or all tails up. We want to write a Prolog predicate that can determine all possible solutions.
+
+Let's represent a state via a list of three atoms, e.g. [h, h, t]. We can write a predicate next() that defines how we may move from one state to the next:
+
+flip(h, t).
+flip(t, h).
+
+% next(S, T) - from state S we can make a move to state T.
+next(S, T) :- select(X, S, Y, T), flip(X, Y).
+For example:
+
+?- next([h, h, t], T).
+T = [t, h, t] ;
+T = [h, t, t] ;
+T = [h, h, h]
+Now let's write a predicate path() that can find all paths from a state S to any final state:
+
+final([h, h, h]).
+final([t, t, t]).
+
+% path(S, P): P is a path from S to a final state.
+path(S, [S]) :- final(S).
+
+path(S, [S | P]) :- next(S, U), path(U, P).
+We want to make three coin flips, so any valid path will have 4 states since it includes both the initial and final states. We can now find all possible solutions:
+
+?- length(P, 4), path([h, h, t], P).
+P = [[h, h, t], [t, h, t], [h, h, t], [h, h, h]] ;
+P = [[h, h, t], [t, h, t], [t, h, h], [h, h, h]] ;
+P = [[h, h, t], [h, t, t], [h, h, t], [h, h, h]] ;
+P = [[h, h, t], [h, t, t], [h, t, h], [h, h, h]] ;
+P = [[h, h, t], [h, h, h], [t, h, h], [h, h, h]] ;
+P = [[h, h, t], [h, h, h], [h, t, h], [h, h, h]] ;
+P = [[h, h, t], [h, h, h], [h, h, t], [h, h, h]]
+Let's try to find any solution at all from the starting state:
+
+?- path([h, h, t], P).
+<hang>
+This query hangs because the depth-first search is considering an infinite path in which it flips the first coin at every step: [h, h, t], [t, h, t], [h, h, t], ... It will never find a solution.
+
+Instead, we can use iterative deepening to find all solutions in increasing order of length:
+
+?- length(P, _), path([h, h, t], P).
+P = [[h, h, t], [h, h, h]] ;
+P = [[h, h, t], [t, h, t], [t, t, t]] ;
+P = [[h, h, t], [h, t, t], [t, t, t]] ;
+P = [[h, h, t], [t, h, t], [h, h, t], [h, h, h]] ;
+P = [[h, h, t], [t, h, t], [t, h, h], [h, h, h]] ;
+P = [[h, h, t], [h, t, t], [h, h, t], [h, h, h]] ;
+P = [[h, h, t], [h, t, t], [h, t, h], [h, h, h]]
+...
+Notice that some of these solutions (such as the fourth one listed) contain repeating states. To avoid that, we could implement a visited set as we did in the predicate dfs1() above.
+
+maplist(P, L)
+Suppose that we have a predicate pos(X) that succeeds if an integer X is positive. We may recursively write a predicate all_pos(L) that is true if all elements of a list are positive:
+
+pos(X) :- X #> 0.
+
+all_pos([]).
+all_pos([X | L]) :- pos(X), all_pos(L).
+Now suppose that we have a predicate even(X) that succeeds if an integer X is even. Similarly, we may write a predicate all_even(L):
+
+even(X) :- X mod 2 #= 0.
+
+all_even([]).
+all_even([X | L]) :- even(X), all_even(L).
+It's awkward that we have to write the same recursive pattern in each of the examples above. Instead, we can use the built-in predicate maplist(). We can write all_pos() and all_even() more simply as follows:
+
+all_pos(L) :- maplist(pos, L).
+all_even(L) :- maplist(even, L).
+maplist(P, L) applies a predicate P to every element of a list L, and succeeds if P succeeds on every element. It is a higher-order predicate because its argument P is itself a predicate.
+
+As another example, suppose that we'd like to write a predicate all_dif(X, L) that is true if every element of L is different from X. We could write this predicate recursively:
+
+all_dif(_, []).
+all_dif(X, [Y | L]) :- dif(X, Y), all_dif(X, L).
+Alternatively, we can write it using maplist:
+
+all_dif(X, L) :- maplist(dif(X), L).
+In this rule, 'dif(X)' is a partially applied predicate. As we know, the 'dif' predicate takes two arguments; for example, dif(a, b) is true. The form 'dif(X)' gives 'dif' its first argument; 'maplist' will pass each member of L in turn as the second argument to 'dif'. If all of those calls succeed, i.e. every element of L is different from X, then 'maplist' itself will succeed.
+
+We may even partially apply the built-in equality predicate '=':
+
+?- length(L, 7), maplist(=(4), L).
+L = [4, 4, 4, 4, 4, 4, 4].
+Sometimes when we use partially applied predicates, the order of arguments in an existing predicate is inconvenient. For example, suppose that we'd like to write a predicate subset(L, M) which is true if L is a subset of M, i.e. every member of L is a member of M. We already have the built-in predicate member(X, L), which succeeds if X is a member of L. We might try to write subset() like this:
+
+subset(L, M) :- maplist(member(M), L).   % WRONG
+However this is wrong. The problem is that the first argument of member() is not a list; it is the member element.
+
+As a workaround, we can write a predicate member_of() that is like member, but with its arguments swapped:
+
+% member_of(L, X) - true if X is a member of L
+member_of(L, X) :- member(X, L).
+And now we can write subset() using maplist:
+
+subset(L, M) :- maplist(member_of(M), L).
+The order of arguments may also be inconvenient if we use partially applied comparison operators. For example, consider the following query:
+
+?- maplist(#>(5), [8, 9, 10]).
+false.
+At first glance, the result above may be surprising, since it looks like the query is testing whether all list elements are greater than 5. However, the query is actally testing whether 5 is greater than each of the list elements! In other words, its first test will be 5 #> 8. That's because the first argument to the #> operator is 5, since it's supplied by the partial application.
+
+If we like, we may define our own comparison operators that take the arguments in the other order! For example, let's use the built-in op() predicate to define operators ':<' and ':>':
+
+:- op(650, xfx, :<).
+:- op(650, xfx, :>).
+
+X :< Y :- X #> Y.
+X :> Y :- X #< Y.
+Above, 650 is an operator precedence level, and 'xfx' means that the operator is binary and is neither left- nor right-associative.
+
+Now we may write
+
+?- maplist(:>(5), [8, 9, 10]).
+true
+This is a somewhat advanced trick. If you like it, use it; otherwise, you don't have to.
+
+maplist(P, L, M)
+When maplist() has three arguments, it applies a predicate P to corresponding pairs of elements from two lists. For example, maplist(P, [1, 2, 3], [4, 5, 6]) will invoke P(1, 4), P(2, 5) and P(3, 6). maplist() will succeed if all of these invocations succeed.
+
+You can use this form to compare list elements, for example:
+
+less(I, J) :- I #< J.
+
+?- maplist(less, [1, 2, 3], [4, 5, 6]).
+true.
+The preceding query succeeds because 1 < 4, 2 < 5, and 3 < 6.
+
+Alternatively, you can pass maplist() a predicate representing a function that you want to apply to every element of a list:
+
+double(I, J) :- J #= I * 2.
+
+?- maplist(double, [1, 2, 3], [2, 4, 6]).
+true.
+?- maplist(double, [1, 2, 3], L).
+L = [2, 4, 6].
+If the function works in both directions then maplist() will too:
+
+?- maplist(length, [[10, 11], [12, 13, 14]], L).
+L = [2, 3].
+
+?- maplist(length, L, [2, 3]).
+L = [[_, _], [_, _, _]].
+Suppose that we have a mapping between numbers and words:
+
+num(1, one).
+num(2, two).
+num(3, three).
+num(4, four).
+We may use maplist() to apply the mapping to an entire list:
+
+?- maplist(num, [2, 2, 3, 4], L).
+L = [two, two, three, four].
+
+?- maplist(num, L, [two, two, three, four]).
+L = [2, 2, 3, 4].
+Let's write a predicate that will add an integer N to every element of a list, using a partially applied predicate:
+
+add(I, J, K) :- I + J #= K.
+
+add_n(N, L, M) :- maplist(add(N), L, M).
+
+?- add_n(7, [10, 20, 30], L).
+L = [17, 27, 37].
+Similarlly, let's write a predicate that will multiply a scalar X times a vector V of floating-point numbers, producing a vector W:
+
+mul(X, Y, Z) :- { X * Y = Z }.
+
+mul_sv(X, V, W) :- maplist(mul(X), V, W).
+maplist(P, L, M, N)
+When maplist() has four arguments, it applies a predicate P to triples of arguments from three lists. For example, we may use this form to add two vectors:
+
+add(A, B, C) :- A + B #= C.
+
+?- maplist(add, [1, 2, 3], [10, 11, 12], L).
+L = [11, 13, 15].
+Suppose that we represent pairs of values using the infix operator ':'. Let's write a predicate zip() that can zip two lists together, producing a list of pairs:
+
+pair(A, B, A : B).
+
+zip(L, M, N) :- maplist(pair, L, M, N).
+For example:
+
+?- zip([1, 2, 3], [10, 20, 30], L).
+L = [1:10, 2:20, 3:30].
+We may even run the predicate backwards to unzip a list of pairs into a pair of lists:
+
+?- zip(L, M, [1:10, 2:20, 3:30]).
+L = [1, 2, 3],
+M = [10, 20, 30].
+call
+maplist() is actually built from a more primitive predicate call(). call() is itself a higher-order predicate, and invokes the predicate it is given, appending additional arguments:
+
+add(A, B, C) :- A + B #= C.
+
+?- call(add, 2, 3, X).
+X = 5.
+
+?- call(length, [2, 4], N).
+N = 2.
+
+?- call(length, L, 2).
+L = [_, _].
+The first argument to call() can be a partially applied predicate:
+
+?- call(add(2), 3, N).
+N = 5.
+
+?- call(add(2, 3), N).
+N = 5.
+implementing maplist
+We can easily implement maplist() using call(). Here are 2- and 3-argument versions of maplist():
+
+maplist(_, []).
+maplist(P, [X | L]) :- call(P, X), maplist(P, L).
+
+maplist(_, [], []).
+maplist(P, [X | L], [Y | M]) :- call(P, X, Y), maplist(P, L, M).
+accumulators
+Suppose that we'd like to write a predicate that computes the sum of all integers from 1 through N. Here's a direct recursive solution:
+
+sum_n(0, 0).
+sum_n(N, S) :- N #> 0, N1 #= N - 1, sum_n(N1, S1), S #= S1 + N.
+Let's try it:
+
+?- sum_n(1000, N).
+N = 500500
+It seems to work. Let's try to compute some large sums:
+
+?- sum_n(1_000_000, N).
+N = 500000500000
+
+?- sum_n(5_000_000, N).
+ERROR: Stack limit (1.0Gb) exceeded
+Unfortunately this last call fails. The problem is that the predicate has recursed very deeply, exceeding available memory. This is disappointing, since in an imperative language such as C we could easily compute this sum using a small constant amount of memory.
+
+As an alternative, we may rewrite the predicate using an accumulator:
+
+sum_acc(0, A, A).
+sum_acc(N, A, S) :- N #>0, N1 #= N - 1, A1 #= A + N, sum_acc(N1, A1, S).
+
+sum_acc(N, S) :- sum_acc(N, 0, S).
+In this version, the top-level predicate sum_acc(N, S) calls the recursive predicate sum_acc(N, A, S), passing 0 as the initial value for the accumulator argument A. Each time that sum_acc recurses, it computes a new value of the accumulator and passes it to the next recursive call. When we reach the base of the recursion, we return the final value of the accumulator.
+
+The rewritten predicate runs more quickly, and can compute larger sums:
+
+?- sum_acc(1_000_000, N).
+N = 500000500000
+
+?- sum_acc(5_000_000, N).
+N = 12500002500000
+In the original predicate sum_n() without the accumulator, the sum is computed from right to left. For example, sum_n(4, S) will compute
+
+1 + (2 + (3 + 4))
+
+On the other hand, the predicate sum_acc() computes the sum from left to right. For example, sum_acc(4, S) will compute
+
+((1 + 2) + 3) + 4
+
+Of course, the result will be the same in either case, because addition is associative: (a + b) + c = a + (b + c).
+
+As we can see, using an accumulator may make a program more efficient. On the other hand, the predicate sum_acc() is a bit more complex than the original version. Furthermore, in some Prolog programs an accumulator may actually hurt performance. I recommend that you use an accumulator only when it provides a significant performance gain.
+
+Tutorial programs
+We solved these exercises in the tutorial.
+
+Using maplist(), write a predicate all_same(L) that is true if all elements of L are identical.
+
+all_same(L) :- maplist(=(_), L).
+We can represent a matrix as a list of lists of floating-point numbers.
+
+Write the following predicates, all of which should work in any direction:
+
+dims(M, I, J): true if M is a matrix with dimensions I x J
+
+has_length(N, L) :- length(L, N).
+
+dims(M, I, J) :- length(M, I), maplist(has_length(J), M).
+zero(M, I, J): true if M is the zero matrix of dimensions I x J
+
+zero_vec(V) :- maplist(=(0), V).
+
+zero(M, I, J) :- dims(M, I, J), maplist(maplist(=(0)), M).
+prod(X, M, N): N is the product of scalar X and matrix M
+
+% A * B = C
+times(A, B, C) :- { A * B = C }.
+
+% X * V = W  (X scalar, V vector, W vector)
+mul_vec(X, V, W) :- maplist(times(X), V, W).
+
+prod(X, M, N) :- maplist(mul_vec(X), M, N).
+Write a predicate to_int(L, N) that is true if L is a list of decimal digits in the number N. For example, to_int([3, 4, 5], 345) is true. Your predicate should work in both directions. Use an accumulator.
+
+to_int([], A, A).
+
+to_int([X | L], A, R) :- X in 0..9, A1 #= A * 10 + X, to_int(L, A1, R).
+
+to_int(L, N) :- to_int(L, 0, N).
+Write a predicate rev(L, M) that is true if L is the reverse of M. Your predicate should work in both directions and should run in linear time. Hint: Use an accumulator.
+
+rev([], A, A).
+
+rev([X | L], A, R) :- rev(L, [X | A], R).
+
+rev(L, M) :- same_length(L, M), rev(L, [], M).
+Write a predicate edges(G, L) that succeeds if L is a list of all edges in the directed graph G, where an edge from V to W is represented as V -> W.
+
+arrow(X, Y, X -> Y).
+
+vertex_edges(V -> L, M) :- maplist(arrow(V), L, M).
+
+edges(G, L) :- maplist(vertex_edges, G, LL), append(LL, L).
+A monkey is standing in a room at position A. There is a box at position B. A bunch of bananas are hanging from the ceiling at position C.
+
+The monkey may take the following actions:
+
+go(P) – go to position P (where P is one of the atoms a, b, or c)
+
+push(P) – push the box (which must be at the monkey's current position) to position P
+
+climb_on – climb onto the box (which must be at the monkey's current position)
+
+climb_off – climb off the box (only if the monkey is currently on the box)
+
+grab – grab the bananas (only if the monkey is on the box under the bananas)
+
+The monkey would like to eat the bananas. Write a Prolog program that can generate all possible solutions, in increasing order of length. A solution is a list of actions to reach the goal. States may be repeated in a solution.
+
+We did not have time to solve this exercise completely. However, we decided that a state could be represented by a list [M, Box, Ban], where
+
+M (the monkey's position) is one of the atoms a, b, c, or box
+
+Box (the box's position) is one of the atoms a, b, or c
+
+Ban (the position of the bananas) is one of the atoms c (i.e. hanging at position c) or hand (i.e. in the monkey's hand)
+
+Here is some of the code we wrote, which I've simplified a bit:
+
+pos(X) :- member(X), [a, b, c]).
+
+action([M, Box, Ban], [P, Box, Ban], go(P)) :- dif(M, P), dif(M, box), pos(P).
+
+action([M, M, Ban], [P, P, Ban], push(P)) :- dif(M, P), pos(P).
+
+action([M, M, Ban], [box, M, Ban], climb_on).

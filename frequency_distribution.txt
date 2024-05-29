@@ -1,0 +1,24 @@
+I'll try explain what you can do (sorry for my poor English).
+
+Your base case freq([], []) looks good, but you want to count elements, so it would be
+
+freq([], [cnt(0, _)])
+which looks odd.
+
+Interesting is the base case of a list with only one element :
+
+freq([A], [cnt(1,A)]).
+Now, in Prolog when we process a list, we keep the first element and process the rest of the list, then we look at the result :
+
+freq([A | T], R) :-
+    freq(T, R1),
+    process(A, R1, R).
+Now, how is R1, two possibilities : R1 = [cnt(V, A) | L] or R1= [cnt(V, B)|L] with A different of B.
+
+So we can write
+
+process(A, [cnt(V, A)|L], [cnt(V1, A) | L]) :-
+    V1 is V+1.
+
+process(A, [cnt(V, B)|L], [cnt(1, A), cnt(V, B) | L]) :-
+    A \= B.

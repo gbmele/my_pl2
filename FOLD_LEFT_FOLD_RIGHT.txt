@@ -1,0 +1,82 @@
+Unifying fold left and fold right
+August 26 2022 #prolog #lisp #pearl
+Here's a rather cool trick we noticed during a recent discussion in the NUS PLSE Lab.1
+
+Fold left and fold right… arguably two of the most fundamental combinators when it comes to working with lists…
+
+But are fold left and fold right really all that different?
+Well… as it turns out, we can actually unify2 these two algorithms into one in Prolog! Let's have a look!
+
+Preliminaries: Functional fold left and right
+Let's start by having a look at the traditional implementations of fold left and right:
+
+let rec fold_left f ls acc = 
+  match ls with 
+  | [] -> acc
+  | h :: t -> fold_left f t (f h acc)
+let rec fold_right f ls acc = 
+ match ls with
+ | [] -> acc
+ | h :: t -> f h (fold_right f t acc)
+While these definitions might seem a little esoteric to the untrained eye3, it turns out they can be used to represent a wide variety of list transformations.
+
+Here's an example of using fold left to reverse a list:
+
+fold_left (fun hd tl -> hd :: tl) [1; 2; 3; 4] []
+
+(* - : int list = [4; 3; 2; 1] *)
+Here's an example of using fold right to reverse a list4:
+
+fold_right (fun hd tl -> tl @ [hd]) [1; 2; 3; 4] []
+
+(* - : int list = [4; 3; 2; 1] *)
+Fold right in Prolog
+Now, let's look at implementing folds in Prolog5, starting with fold right6.
+
+fold(F, [], ACC, ACC).
+fold(F, [H|T], ACC, RES) :-
+    call(F, H, ACC, NEW_ACC),
+    fold(F, T, NEW_ACC, RES).
+Here's an example of using it to reverse a list:
+
+snoc(H, RES, T) :- append(T,[H], RES).
+?- fold(snoc, [1,2,3,4], RES, []).
+/* RES = [4,3,2,1] */
+Great! Okay, so, now, how about fold left?
+
+Plot twist: Fold left is Fold right
+Well, here's the cool part: We can use the same fold predicate to implement fold left! All we need to do is to change which variables we are querying and which ones we are instantiating:
+
+cons(H, T, [H|T]).
+?- fold(cons, [1,2,3,4], [], RES).
+/* RES = [4,3,2,1] */
+An interesting thing to note is that the higher order predicates for fold left and fold right also differ in which argument they treat as existential and which arguments they instantiate:
+
+for fold left, the list head and accumulator are existential, and the output is instantiated to be a cons.
+for fold right, the list head and result are existential and the accumulator is instantiated to be an append.
+This is quite nice as it mirrors exactly the different recursion scheme between the two combinators, where fold left updates the accumulator immediately, while fold right recuses on the tail first, and then uses the result of the recursive call to update the accumulator.
+
+So, fold left, and fold right… not so different after all…
+
+Footnotes:
+1
+This seems so fundamental that it has likely been observed many times before, but it was surprising and cool to me, so I thought I'd share!
+
+2
+Pun intended.
+
+3
+Read: someone who's not a functional programmer.
+
+4
+A wildly inefficient implementation mind you - don't even think about using this in production!
+
+5
+SWI-Prolog to be specific.
+
+6
+I'm going to name my fold right function fold, for reasons you can probably guess!
+
+This website does not track you or collect any detailed analytics.
+Emacs Web Wowser (eww) recommended for optimal viewing experience
+JavaScript license information

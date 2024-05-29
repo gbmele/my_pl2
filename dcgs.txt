@@ -1,0 +1,39 @@
+how do DCGs relate to standard Prolog clauses ?
+DCGs are really just a convenient abbreviation for ordinary Prolog clauses. Each DCG clause is translated into a standard Prolog clause as it is loaded. The procedural interpretation of a grammar rule is that it takes an input list of symbols, analyses some initial portion of that list and produces the remaining portion (possibly enlarged) as output for further analysis. The arguments required for the input and output lists are not written explicitly in a grammar rule but are added when the rule is translated into an ordinary Prolog clause. For example, the DCG rule:
+
+p(X, Y) --> q(X), r(X, Y), s(Y).
+translates into:
+p(X, Y, Input, Output):-
+    q(X, Input, Out1),
+    r(X, Y, Out1, Out2),
+    s(Y, Out2, Output).
+Terminal symbols are translated using the built in predicate :
+
+'C'(Input, Symbol, Remainder)
+which nips the given Symbol from the Input list, leaving the Remainder of the list of terminal symbols. It is defined by the single clause:
+'C'([X|Remainder], X, Remainder).
+This predicate isn't normally accessed by the programmer, hence the obscure name. This gives us the following translation for a DCG rule containing both terminal and non-terminal symbols:
+p(X) --> [go,to], q(X), [stop].
+is translated into:
+p(X, Input, Output):-
+    'C'(Input, go, Out1),
+    'C'(Out1, to, Out2),
+    q(X, Out2, Out3),
+    'C'(Out3, stop, Output).
+Extra conditions expressed as procedure calls just appear as themselves, without any extra translation, so:
+
+p(X) --> [X], {integer(X), X > 0}, q(X).
+is translated into:
+p(X, Input, Output):-
+    'C'(Onput, X, Out1),
+    integer(X),
+    X > 0,
+    q(X, Out1, Output).
+
+
+f --> g,h
+
+just translates to f(I,O) :- g(I,TEMP),h(TEMP,O).
+
+so then do f(INPUT,R).   
+

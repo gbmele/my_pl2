@@ -1,0 +1,106 @@
+A Language for Crypto Problems
+Now that weve gone over the basics of creating context free grammars (CFGs) and definite clause grammars (DCGs) for something basic like the purple language, lets take a look at what our language for posing crypto problems will be. It needs to be a little flexible in the ordering of the numbers and goal, and account for different ways users may choose to interact with the program. Keeping that in mind, here are a few examples of sentences that we sould allow in our language:
+
+use one and two and three and four and five to make zero.
+use whatever to make whatever .
+can you make four with four fours and one one ?
+write five in the terms of the odd numbers .
+can you make zero with five nines?
+
+Those are just a few examples, this language is going to be a great deal more extensive than the purple language, so there will be more sentences that can be generated. Now then, lets get to defining our grammars for our crypto problem language.
+
+The Crypto CFG
+The Terminals: { . ? stop use write in terms of whatever to make can you from with the first positive numbers through odd and zero one two three four five six seven eight nine zeros ones twos threes fours fives sixes sevens eights nines}
+The Nonterminals: {sentence simpleproblemcommand simpleproblemquery randomproblemcommand separator goal numberzzz number pluralnumber}
+The productions:
+sentence -> simpleproblemcommand
+sentence -> simpleproblemquery
+sentence -> randomproblemcommand
+simpleproblemcommand -> use numberzzz to make goal .
+simpleproblemcommand -> write goal in terms of numberzzz .
+randomproblemcommand -> use whatever to make whatever .
+simpleproblemquery -> can you make goal separator numberzzz ?
+separator -> from
+separator -> with
+goal -> number
+numberzzz -> number and number and number and number and number
+numberzzz -> number number number number and number
+numberzzz -> the first five positive numbers
+numberzzz -> numbers zero through four
+numberzzz -> numbers one through five
+numberzzz -> numbers two through six
+numberzzz -> numbers three through seven
+numberzzz -> numbers four through eight
+numberzzz -> numbers five through nine
+numberzzz -> the odd numbers
+numberzzz -> five pluralnumber
+numberzzz -> four pluralnumber and one number
+numberzzz -> one number and four pluralnumber
+numberzzz -> two pluralnumber and three pluralnumber
+numberzzz -> three pluralnumber and two pluralnumber
+numberzzz -> two pluralnumber and two pluralnumber and one number
+numberzzz -> one number and two pluralnumber and two pluralnumber
+numberzzz -> two pluralnumber and one number and two pluralnumber
+number -> zero
+number -> one
+number -> two
+number -> three
+number -> four
+number -> five
+number -> six
+number -> seven
+number -> eight
+number -> nine
+pluralnumber -> zeros
+pluralnumber -> ones
+pluralnumber -> twos
+pluralnumber -> threes
+pluralnumber -> fours
+pluralnumber -> fives
+pluralnumber -> sixes
+pluralnumber -> sevens
+pluralnumber -> eights
+pluralnumber -> nines
+The Start Symbol: sentence
+Some Transformations
+Now that we have a robust CFG, we can see how some of our example sentences are derived in this language:
+
+use one and two and three and four and five to make zero.
+sentence
+sentence 1=> simpleproblemcommand
+simpleproblemcommand 4=> use numberzzz to make goal.
+use numberzzz to make goal. 11=> use number and number and number and number and number to make goal.
+use number and number and number and number and number to make goal. 30=> use one and number and number and number and number to make goal.
+use one and number and number and number and number to make goal. 31=> use one and two and number and number and number to make goal.
+use one and two and number and number and number to make goal. 32=> use one and two and three and number and number to make goal.
+use one and two and three and number and number to make goal. 33=> use one and two and three and four and number to make goal.
+use one and two and three and four and number to make goal. 34=> use one and two and three and four and five to make goal.
+use one and two and three and four and five to make goal. 10=> use one and two and three and four and five to make number.
+use one and two and three and four and five to make number 29=> use one and two and three and four and five to make zero.
+
+can you make four with four fours and one one?
+sentence
+sentence 2=> simpleproblemquery
+simpleproblemquery 7=> can you make goal separator numberzzz?
+can you make goal separator numberzzz 10=> can you make number separator numberzzz?
+can you make number separator numberzzz? 33=> can you make four separator numberzzz?
+can you make four separator numberzzz? 9=> can you make four with numberzzz?
+can you make four with numberzzz? 22=> can you make four with four pluralnumber and one number?
+can you make four with four pluralnumber and one number? 43=> can you make four with four fours and one number?
+can you make four with four fours and one number? 30=> can you make four with four fours and one one?
+
+use whatever to make whatever.
+sentence
+sentence 3=> randomproblemcommand
+randomproblemcommand 6=> use whatever to make whatever.
+
+Recognizing and Interpreting The Language
+The next step is to create a DCG from the CFG. This is pretty simple, and you can accomplish it by following the instructions from the previous page. Take a look at a simple recognizer for the crypto language here, and a demo of how that works here. The more difficult portion will be creating an interpreter, which can create a problem from a proper sentence. In order to do this, we will add some additional prolog code to our DCG that is defined in the recognizer. For example, sentence --> randomproblemcommand may look like:
+
+sentence(Problem) --> randomproblemcommand(Problem)
+
+This means that we are adding a variable, which must be assigned a value at some later point. In this case, we can easily get the value from:
+
+randomproblemcommand(Problem) --> [use],[whatever],[to],[make],[whatever],[.],{generateRandomCryptoProblem(Problem)}.
+
+The {} helps prolog acknowledge that it is going to execute code that lies outside of the DCG, and generateRandomCryptoProblem is going to assign a random problem to the variable Problem, which can then be printed out, or solved, such as in this demo. You can look at the code for the interpreter here.

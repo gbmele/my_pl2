@@ -59,37 +59,37 @@ list_col_val_set(LIST,INDEX,VAL,RESULT):-
  nth1(INDEX,RESULT,VAL,REST).
 
 
-item(0,[H|_],H).
-item(N,[ _|T],Element) :-
-  NM1 is N - 1,
-  item(NM1,T,Element).
+runcode([], C, N, [N*C]).
+runcode([H|T], H, N, Z):- 
+  N1 is N+1, 
+  runcode(T, H, N1, Z). 
+runcode([H|T], C, N, [N*C|Z]):- 
+  H\== C, 
+  runcode(T, H, 1, Z).
+%%?- X=[a,a,a,s,s,s,d,d,e,a,a,g,g,g,a,a,v],runcode(X,0,1,R).
+%%X = [a, a, a, s, s, s, d, d, e|...],
+%%R = [1*0, 3*a, 3*s, 2*d, 1*e, 2*a, 3*g, 2*a, ... * ...] .
 
 
+len([], 0).
+len([H|T], N):- 
+  len(T, N1), 
+  N is N1+1.
 
-%%% very haskelly
-%%% willl need to remind myself how this works in a few months time.....
+ca([], 0).
+ca([a|T], N):- 
+    ca(T, N1), 
+    N is N1+1.
 
-process_a_line([DOC|ROSTER],RESULT):-
-  upcase_atom(DOC,UPDOC),
-  length(ROSTER,NUMDAYS),
-  one_to_n(NUMDAYS,ONE_TO_DAYS),   %% [1,2,3,4,5,6,] 
-  replicate(DOC,NUMDAYS,UPDOCS),                           %% [gm.gm,gm,gm,gm,gm]
-  maplist(translate,ROSTER,ROSTER2),
-  zip(UPDOCS,ONE_TO_DAYS,ROSTER2,RESULT).
+cap([], 0,0).
+cap([a|T], A,P):- 
+    cap(T, A1,P), 
+    A is A1+1.
+cap([p|T], A,P):- 
+  cap(T, A,P1), 
+  P is P1+1.
 
-zip([], [], []).
-zip([X|Xs], [Y|Ys], [(X,Y)|Zs]) :- zip(Xs,Ys,Zs).
-
-zip([], [], [], []).
-zip([W|Ws],[X|Xs], [Y|Ys], [(W,X,Y)|Zs]) :- zip(Ws,Xs,Ys,Zs).
-
-one_to_n(N,RESULT):-
-  findall(TEMP,between(1,N,TEMP),RESULT).
-
-replicate(X, N, List)  :- 
-  length(List, N), 
-  maplist(=(X), List).
-
-translate(X,[X,X]).  
-
-
+cap([X|T], A,P):-
+ (X \== a ; X \== p),
+ cap(T,A,P).
+ 
